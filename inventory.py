@@ -1,9 +1,5 @@
 T = input()
-while int(T) > 25 or int(T) < 1:
-    T = input('')
 N = input()
-while int(N) > 100 or int(N) < 1:
-    N = input('')
 inventory = []
 inventory_quantity = []
 
@@ -12,14 +8,9 @@ for i in range(int(T)):
         item_input = input()
         items = item_input.split()
         inventory.append(items[0])
-        if int(items[1]) < 101 or int(items[1]) > 0:
-            inventory_quantity.append(int(items[1]))
-        else:
-            inventory_quantity.append(0)
+        inventory_quantity.append(int(items[1]))
 
 M = input()
-while int(M) > 100 or int(M) < 1:
-    M = input('')
 for i in range(int(M)):
     Modify_state = input()
     words = Modify_state.split()
