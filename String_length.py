@@ -1,7 +1,7 @@
-T = int(input('Test cases:'))
+T = int(input())
 
 for i in range(T):
-    string = input('STR:')
+    string = input()
     words = string.split()
     init = words[0]
     last = words[-1]
