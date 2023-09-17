@@ -1,23 +1,15 @@
+# cook your dish here
 T = int(input())
 
 for i in range(T):
     string = input()
+    if string.startswith("@"):
+        string = string[1:] 
     words = string.split()
-    init = words[0]
-    last = words[-1]
-    output = ''
-    # if init[0] == '@':
-    #     n = len(init)-1
-    #     output = str(n)
+    output = ""
+
+    for word in words:
+        output += str(len(word)) + ","
     
-    for j,word in enumerate(words):
-        if init[0] == '@' and j == 0:
-            n = len(init)-1
-            output = str(n)+','
-            continue
-        elif last == word:
-            output += str(len(word))
-        else:
-            temp = str(len(word))+','
-            output += temp
+    output = output.rstrip(",")
     print(output)
