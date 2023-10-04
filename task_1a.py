@@ -37,8 +37,8 @@ cause errors while running the executable
 
 ################# ADD UTILITY FUNCTIONS HERE #################
 from torch.utils.data import TensorDataset, DataLoader
-import torch.nn
-
+import torch.nn as nn
+from sklearn.model_selection import train_test_split
 
 
 ##############################################################
@@ -87,86 +87,86 @@ def identify_features_and_targets(encoded_dataframe):
     # Remove the target label from the list of selected features
     target_label = 'LeaveOrNot'  # Replace 'TargetColumnName' with your actual target column name
     selected_features.remove(target_label)
+    selected_features.remove('City_Bangalore')
+    selected_features.remove('City_New Delhi')
+    selected_features.remove('City_Pune')
+    selected_features.remove('Gender_Male')
+    selected_features.remove('Gender_Female')
     
     # Return a list containing selected features and the target label
     features_and_targets = [selected_features, target_label]
-    # print(features_and_targets)
+    print(features_and_targets)
     return features_and_targets
 
+from sklearn.model_selection import train_test_split
+
 def load_as_tensors(features_and_targets):
+    ''' 
+    Purpose:
+    ---
+    This function aims at loading your data (both training and validation)
+    as PyTorch tensors. Here you will have to split the dataset for training 
+    and validation, and then load them as as tensors. 
+    Training of the model requires iterating over the training tensors. 
+    Hence the training sensors need to be converted to iterable dataset
+    object.
 
-        ''' 
-        Purpose:
-        ---
-        This function aims at loading your data (both training and validation)
-        as PyTorch tensors. Here you will have to split the dataset for training 
-        and validation, and then load them as as tensors. 
-        Training of the model requires iterating over the training tensors. 
-        Hence the training sensors need to be converted to iterable dataset
-        object.
-        
-        Input Arguments:
-        ---
-        `features_and targets` : [ list ]
-                                python list in which the first item is the 
-                                selected features and second item is the target label
-        
-        Returns:
-        ---
-        `tensors_and_iterable_training_data` : [ list ]
-                                                Items:
-                                                [0]: X_train_tensor: Training features loaded into Pytorch array
-                                                [1]: X_test_tensor: Feature tensors in validation data
-                                                [2]: y_train_tensor: Training labels as Pytorch tensor
-                                                [3]: y_test_tensor: Target labels as tensor in validation data
-                                                [4]: Iterable dataset object and iterating over it in 
-                                                    batches, which are then fed into the model for processing
+    Input Arguments:
+    ---
+    `features_and targets` : [ list ]
+                            python list in which the first item is the 
+                            selected features and second item is the target label
 
-        Example call:
-        ---
-        tensors_and_iterable_training_data = load_as_tensors(features_and_targets)
-        '''
+    Returns:
+    ---
+    `tensors_and_iterable_training_data` : [ list ]
+                                            Items:
+                                            [0]: X_train_tensors: Training features loaded into Pytorch tensors
+                                            [1]: X_val_tensors: Feature tensors in validation data
+                                            [2]: y_train_tensor: Training labels as Pytorch tensor
+                                            [3]: y_val_tensor: Target labels as tensor in validation data
+                                            [4]: Iterable dataset object and iterating over it in 
+                                                batches, which are then fed into the model for processing
 
-        #################	ADD YOUR CODE HERE	##################
-        # Extract features and target label from the input
-        features, target_label = features_and_targets
+    Example call:
+    ---
+    tensors_and_iterable_training_data = load_as_tensors(features_and_targets, encoded_dataframe)
+    '''
 
-        # Assuming you have your dataset loaded as encoded_dataframe
-        y = encoded_dataframe[target_label]
+    # Extract features and target label from the input
+    features, target_label = features_and_targets
 
-        # Initialize a dictionary to store feature tensors
-        X_tensors = {}
+    # Get the selected features from the DataFrame
+    X = encoded_dataframe[features].values
 
-        # Loop through the selected features
-        for column in features:
-            X = encoded_dataframe[column].values  # Extract the values as a NumPy array
-            X_tensor = torch.tensor(X, dtype=torch.float32)  # Convert to PyTorch tensor
-            X_tensors[column] = X_tensor  # Store the tensor in the dictionary
+    # Get the target labels from the DataFrame
+    y = encoded_dataframe[target_label].values
 
-        # Split the dataset into training and validation sets
-        num_samples = len(y)
-        num_train_samples = int(0.5 * num_samples)
+    # Split the data into training and validation sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.90, random_state=22)
 
-        X_train_tensors = {column: X_tensors[column][:num_train_samples] for column in features}
-        y_train_tensor = torch.tensor(y[:num_train_samples].values, dtype=torch.float32)
-        X_val_tensors = {column: X_tensors[column][num_train_samples:] for column in features}
-        y_val_tensor = torch.tensor(y[num_train_samples:].values, dtype=torch.float32)
+    # Convert data to PyTorch tensors
+    X_train_tensors = torch.FloatTensor(X_train)
+    X_test_tensors = torch.FloatTensor(X_test)
+    y_train_tensor = torch.FloatTensor(y_train)
+    y_test_tensor = torch.FloatTensor(y_test)
 
-        # Create a TensorDataset for training data
-        train_dataset = TensorDataset(*[X_train_tensors[column] for column in features], y_train_tensor)
+    # Create a TensorDataset for training data
+    train_dataset = TensorDataset(X_train_tensors, y_train_tensor)
 
-        # Create a DataLoader for training data (iterable dataset)
-        train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-        print(train_loader.dataset.__dict__)
-        tensors_and_iterable_training_data = [
-            X_train_tensors,
-            X_val_tensors,
-            y_train_tensor,
-            y_val_tensor,
-            train_loader
-        ]
-        # print(tensors_and_iterable_training_data)
-        return tensors_and_iterable_training_data
+    # Create a DataLoader for training data (iterable dataset)
+    train_loader = DataLoader(train_dataset, batch_size=1500, shuffle=True)
+
+    tensors_and_iterable_training_data = [
+        X_train_tensors,
+        X_test_tensors,
+        y_train_tensor,
+        y_test_tensor,
+        train_loader
+    ]
+
+    return tensors_and_iterable_training_data
+
 
 class Salary_Predictor(torch.nn.Module):
         '''
@@ -188,9 +188,9 @@ class Salary_Predictor(torch.nn.Module):
             super(Salary_Predictor, self).__init__()
             
             # Define the layers of the neural network
-            self.fc1 = torch.nn.Linear(14,256)  # Input layer to hidden layer
+            self.fc1 = torch.nn.Linear(9,64)  # Input layer to hidden layer
             self.relu = torch.nn.ReLU()  # Activation function (e.g., ReLU)
-            self.fc2 = torch.nn.Linear(256, 1)  # Hidden layer to output layer
+            self.fc2 = torch.nn.Linear(64, 1)  # Hidden layer to output layer
             
         def forward(self, x):
             # Define the forward pass
@@ -270,7 +270,7 @@ def model_number_of_epochs():
         number_of_epochs = model_number_of_epochs()
         '''
         #################	ADD YOUR CODE HERE	##################
-        number_of_epochs = 50 
+        number_of_epochs = 100
         ##########################################################
         return number_of_epochs
 
@@ -300,7 +300,7 @@ def training_function(model, number_of_epochs, tensors_and_iterable_training_dat
     
     # Unpack tensors and iterable training data
     X_train_tensor, X_val_tensor, y_train_tensor, y_val_tensor, train_loader = tensors_and_iterable_training_data
-    # print(train_loader.values())
+    
     # Training loop
     for epoch in range(number_of_epochs):
         model.train()  # Set the model to training mode
@@ -314,7 +314,6 @@ def training_function(model, number_of_epochs, tensors_and_iterable_training_dat
             optimizer.zero_grad()  # Zero the gradients
             
             # Unpack the batch into input data and target labels
-            print(batch)
             input_data, target_labels = batch
             
             # Forward pass
@@ -334,7 +333,7 @@ def training_function(model, number_of_epochs, tensors_and_iterable_training_dat
             
             # Calculate the number of correct predictions (if it's a classification task)
             # For regression, you can omit this part
-            if isinstance(loss_function, torch.nn.CrossEntropyLoss):
+            if isinstance(loss_function, nn.CrossEntropyLoss):
                 _, predicted = torch.max(predictions, 1)
                 correct_predictions += (predicted == target_labels).sum().item()
         
@@ -353,13 +352,14 @@ def training_function(model, number_of_epochs, tensors_and_iterable_training_dat
             
             # Calculate validation accuracy (if it's a classification task)
             # For regression, you can omit this part
-            if isinstance(loss_function, torch.nn.CrossEntropyLoss):
+            if isinstance(loss_function, nn.CrossEntropyLoss):
                 _, val_predicted = torch.max(val_predictions, 1)
                 val_correct_predictions = (val_predicted == y_val_tensor).sum().item()
                 val_accuracy = val_correct_predictions / len(y_val_tensor)
                 print(f"Validation Accuracy: {val_accuracy:.4f}")
     
     return model
+
 
 
 def validation_function(trained_model, tensors_and_iterable_training_data):
