@@ -74,8 +74,12 @@ def data_preprocessing(task_1a_dataframe):
         '''
 
         #################	ADD YOUR CODE HERE	##################
-        encoded_dataframe = pandas.get_dummies(task_1a_dataframe, columns=['Education', 'City', 'Gender','EverBenched'])
+        encoded_dataframe = pandas.get_dummies(task_1a_dataframe, columns=[])
         encoded_dataframe = encoded_dataframe.replace({True: 1, False: 0})
+        encoded_dataframe = encoded_dataframe.replace({'Bachelors':0,'Masters':1,'PHD':2})
+        encoded_dataframe = encoded_dataframe.replace({'Yes':1,'No':0})
+        encoded_dataframe = encoded_dataframe.replace({'Bangalore':0, 'Pune':1, 'New Delhi':2})
+        encoded_dataframe = encoded_dataframe.replace({'Male':1,'Female':0})
         ##########################################################
 
         return encoded_dataframe
@@ -87,15 +91,17 @@ def identify_features_and_targets(encoded_dataframe):
     # Remove the target label from the list of selected features
     target_label = 'LeaveOrNot'  # Replace 'TargetColumnName' with your actual target column name
     selected_features.remove(target_label)
-    selected_features.remove('City_Bangalore')
-    selected_features.remove('City_New Delhi')
-    selected_features.remove('City_Pune')
-    selected_features.remove('Gender_Male')
-    selected_features.remove('Gender_Female')
-    
+    selected_features.remove('City')
+    selected_features.remove('Gender')
+    # selected_features.remove('Age')
+    # selected_features.remove('JoiningYear')
+    # selected_features.remove('PaymentTier')    
+    selected_features.remove('EverBenched')
+    # selected_features.remove('ExperienceInCurrentDomain')
+    selected_features.remove('Education')
     # Return a list containing selected features and the target label
     features_and_targets = [selected_features, target_label]
-    print(features_and_targets)
+    # print(features_and_targets)
     return features_and_targets
 
 from sklearn.model_selection import train_test_split
@@ -143,7 +149,7 @@ def load_as_tensors(features_and_targets):
     y = encoded_dataframe[target_label].values
 
     # Split the data into training and validation sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.90, random_state=22)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.85, random_state=60)
 
     # Convert data to PyTorch tensors
     X_train_tensors = torch.FloatTensor(X_train)
@@ -155,7 +161,7 @@ def load_as_tensors(features_and_targets):
     train_dataset = TensorDataset(X_train_tensors, y_train_tensor)
 
     # Create a DataLoader for training data (iterable dataset)
-    train_loader = DataLoader(train_dataset, batch_size=1500, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=32)
 
     tensors_and_iterable_training_data = [
         X_train_tensors,
@@ -188,9 +194,9 @@ class Salary_Predictor(torch.nn.Module):
             super(Salary_Predictor, self).__init__()
             
             # Define the layers of the neural network
-            self.fc1 = torch.nn.Linear(9,64)  # Input layer to hidden layer
+            self.fc1 = torch.nn.Linear(4,128)  # Input layer to hidden layer
             self.relu = torch.nn.ReLU()  # Activation function (e.g., ReLU)
-            self.fc2 = torch.nn.Linear(64, 1)  # Hidden layer to output layer
+            self.fc2 = torch.nn.Linear(128, 1)  # Hidden layer to output layer
             
         def forward(self, x):
             # Define the forward pass
@@ -238,6 +244,7 @@ def model_optimizer(model):
     `model`: An object of the 'Salary_Predictor' class
     
     Returns:
+    # selected_features.remove('Age')
     ---
     `optimizer`: Adam optimizer
     
@@ -247,7 +254,7 @@ def model_optimizer(model):
     '''
     
     # Define the optimizer (Adam)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)  # You can adjust the learning rate
+    optimizer = torch.optim.NAdam(model.parameters(), lr=0.1)  # You can adjust the learning rate
     
     return optimizer
 
@@ -348,7 +355,7 @@ def training_function(model, number_of_epochs, tensors_and_iterable_training_dat
             val_loss = loss_function(val_predictions, y_val_tensor)
             
             # Print validation loss (optional)
-            print(f"Validation Loss: {val_loss.item():.4f}")
+            # print(f"Validation Loss: {val_loss.item():.4f}")
             
             # Calculate validation accuracy (if it's a classification task)
             # For regression, you can omit this part
@@ -356,52 +363,62 @@ def training_function(model, number_of_epochs, tensors_and_iterable_training_dat
                 _, val_predicted = torch.max(val_predictions, 1)
                 val_correct_predictions = (val_predicted == y_val_tensor).sum().item()
                 val_accuracy = val_correct_predictions / len(y_val_tensor)
-                print(f"Validation Accuracy: {val_accuracy:.4f}")
+                # print(f"Validation Accuracy: {val_accuracy:.4f}")
     
     return model
-
 
 
 def validation_function(trained_model, tensors_and_iterable_training_data):
     '''
     Purpose:
     ---
-    Evaluate the trained model on the validation dataset and calculate accuracy.
-    
+    Evaluate the trained model on the validation dataset and calculate accuracy (if applicable).
+
     Input Arguments:
     ---
     1. `trained_model`: Model trained using the training function
     2. `tensors_and_iterable_training_data`: List containing training and validation data tensors 
                                              and an iterable dataset object of training tensors
-    
+    3. `loss_function`: Loss function defined for the model
+
     Returns:
     ---
-    model_accuracy: Accuracy on the validation dataset
-    
-    Example call:
-    ---
-    model_accuracy = validation_function(trained_model, tensors_and_iterable_training_data)
+    model_accuracy: Accuracy on the validation dataset (None for regression tasks)
     '''
-    
-    # Unpack tensors and iterable training data
-    X_train_tensor, X_val_tensor, y_train_tensor, y_val_tensor, _ = tensors_and_iterable_training_data
-    
-    # Set the model to evaluation mode
-    trained_model.eval()
-    
-    # Make predictions on the validation dataset
-    with torch.no_grad():
-        val_predictions = trained_model(X_val_tensor)
-    
-    # Calculate accuracy (if it's a classification task)
-    # For regression, you can replace this with an appropriate evaluation metric
-    if isinstance(trained_model, torch.nn.Module) and isinstance(y_val_tensor, torch.Tensor):
-        _, val_predicted = torch.max(val_predictions, 1)
-        val_correct_predictions = (val_predicted == y_val_tensor).sum().item()
-        model_accuracy = val_correct_predictions / len(y_val_tensor)
-    else:
-        model_accuracy = None  # No accuracy calculation for regression
-    
+    try:
+        # Unpack tensors and iterable training data
+        X_train_tensor, X_val_tensor, y_train_tensor, y_val_tensor, _ = tensors_and_iterable_training_data
+
+        test_dataset = TensorDataset(X_val_tensor, y_val_tensor)
+        validation_loader = DataLoader(test_dataset, batch_size=52)
+
+        # Set the model to evaluation mode
+        trained_model.eval()
+
+        # Initialize variables for calculating accuracy (if applicable)
+        total_correct = 0
+        total_samples = 0
+
+        # Iterate through mini-batches in the validation DataLoader
+        with torch.no_grad():
+
+            # Forward pass for validation
+            val_predictions = trained_model(X_val_tensor)
+
+            # Calculate loss for this mini-batch (optional)
+            val_loss = loss_function(val_predictions, y_val_tensor)
+
+            # Calculate accuracy (if it's a classification task)
+            if isinstance(y_val_tensor, torch.Tensor):
+                _, val_predicted = torch.max(val_predictions, 1)
+                total_correct += (val_predicted == y_val_tensor).sum().item()
+                total_samples += len(y_val_tensor)
+
+        # Calculate accuracy (if applicable)
+        model_accuracy = total_correct / total_samples if total_samples > 0 else None
+    except Exception as e:
+         print(e)
+         pass
     return model_accuracy
 
 if __name__ == "__main__":
