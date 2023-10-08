@@ -93,12 +93,12 @@ def identify_features_and_targets(encoded_dataframe):
     selected_features.remove(target_label)
     selected_features.remove('City')
     selected_features.remove('Gender')
-    # selected_features.remove('Age')
+    selected_features.remove('Age')
     # selected_features.remove('JoiningYear')
-    # selected_features.remove('PaymentTier')    
-    selected_features.remove('EverBenched')
+    selected_features.remove('PaymentTier')    
+    # selected_features.remove('EverBenched')
     # selected_features.remove('ExperienceInCurrentDomain')
-    selected_features.remove('Education')
+    # selected_features.remove('Education')
     # Return a list containing selected features and the target label
     features_and_targets = [selected_features, target_label]
     # print(features_and_targets)
